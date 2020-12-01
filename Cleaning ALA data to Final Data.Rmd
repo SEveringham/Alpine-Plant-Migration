@@ -1,0 +1,96 @@
+---
+title: "Cleaning ALA data to Final Data"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+Installing packages
+```{r}
+library(tinytex)
+library(dplyr)
+```
+
+Reading in data downloaded from Atlas of Living Australia
+```{r}
+data <- read.csv("ALA data.csv")
+```
+
+Filtering data
+```{r}
+data <- data %>%
+  filter(!is.na(Year) & !is.na(Species) & !is.na(Latitude) & !is.na(Longitude)) %>% #excluding data points without a year, species, coordinates
+  filter(CoordinateUncertainty <= 50)
+```
+
+I added google elevation data to the ALA data (I used a google elevation api to get the elevations from the coordinates as the elevation on ALA is not accurate)
+The methods for this analysis is in the Rmarkdown file "Get Google Elevation data.Rmd"
+
+Adding columns for min and max elevation
+```{r}
+data <- data %>%
+            group_by(Species) %>%               #grouping into species
+            mutate(minElevation = min(GoogleElevation)) %>%  #adding column for minimum elevation values for each species
+            ungroup()
+
+data <- data %>%
+            group_by(Species) %>%               # grouping into species
+            mutate(maxElevation = max(GoogleElevation)) %>% #adding column for maximum elevation values for each species
+  ungroup() 
+```
+
+Filtering data to only include data points above 1350m 
+```{r}
+data <- data %>%
+      filter(minElevation>=1350) %>%       # deleting datapoints with min elevation that is <1350m
+      ungroup()                            # ungrouping into species
+```
+
+finding which species with max range visible below 2200m
+```{r}
+Hypothesis2Species <- data %>% 
+  filter(maxElevation<2200) %>% 
+  group_by(Species) %>% 
+  summarize(count=n()) %>%
+  filter(count >= 20) %>% # returns 1-33 species
+  rename(count = count)
+```
+
+finding which species with max range not visible below 2200m
+```{r} 
+Hypothesis3Species <- data %>% 
+  filter(maxElevation>2200)%>%
+  group_by(Species) %>% 
+  summarize(count=n()) %>%
+  filter(count >= 20)  %>% # returns 1-23 species
+  rename(count = count)
+```
+
+Combining hypothesis 2 and 3 species to get a list of all species 
+```{r}
+AllSpecies <- rbind(Hypothesis2Species, Hypothesis3Species)
+```
+
+Generating final data set with 50 coordinate uncertainty and 20 datapoints 
+```{r}
+FinalData <- list(data, AllSpecies) %>%
+  purrr::reduce(left_join, by = "Species") %>%
+  filter(count>=20) # filtering data for species with greater than 20 counts
+```
+
+creating csv of final data
+```{r}
+write.csv(FinalData, "Final Data.csv")
+```
+
+Combining my Final ALA data with my modern collection data
+```{r}
+ModernData <- read.csv("Modern Data.csv")
+HistoricData <- read.csv("Final Data.csv")
+
+HistoricModernData <- as.data.frame(bind_rows(ModernData, HistoricData))  
+
+write.csv(HistoricModernData, "Historic and Modern Data.csv")
+```
+

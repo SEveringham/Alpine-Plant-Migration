@@ -1,0 +1,694 @@
+---
+title: "Linear moels and graphing final data"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(broom)
+library(ggforce)
+library(tidyr)
+library(ggtext)
+```
+
+Read in data created in "Cleaning ALA data to Final Data.Rmd"
+```{r}
+FinalData <- read.csv("Historic and Modern Data.csv")
+```
+
+Species list from Final Data
+```{r}
+SpeciesList <- FinalData %>% 
+  group_by(Species) %>% 
+  summarize(count=n())
+```
+
+Turning Species List into csv for future metaanalysis for sample size (count)
+```{r}
+write.csv(SpeciesList, "Species list and count.csv")
+```
+
+running single regression without random effect
+```{r}
+lm.ranun <- FinalData %>%                          
+  filter(Species == "Carpha nivicola") %>%
+  stats::lm(GoogleElevation~Year,.) #can just change species for each linear model
+
+summary(lm.ranun)
+```
+
+running many linear regressions on ALL SPECIES without random effect
+```{r}
+mylms <- FinalData %>%
+  group_by(Species) %>%
+    do(model=lm(GoogleElevation ~ Year,.))
+
+mylmcoefs <- as.data.frame(tidy(mylms, model))
+
+##now run a p adjustment , due to multiple hypothesis 
+
+mylmcoefs$Pcorrected <- p.adjust(mylmcoefs$p.value, "holm")
+
+write.csv(mylmcoefs, "Linear Models for all species.csv")
+```
+
+
+```{r}
+ListSpecies <- split(FinalData, FinalData$Species)
+```
+
+Graphing for a single species, year vs elevation, linear model with random effect for year for each species (with coord cartisian on both axis)
+```{r}
+#1 Aciphylla glacialis
+Aciphylla.glacialis.plot <- ggplot(filter(FinalData, Species =="Aciphylla glacialis")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  labs(title="*Aciphylla glacialis*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230)) 
+
+#2 Agrostis muelleriana
+Agrostis.muelleriana.plot <- ggplot(filter(FinalData, Species =="Agrostis muelleriana")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Agrostis muelleriana*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#3 Astelia alpina
+Astelia.alpina.plot <- ggplot(filter(FinalData, Species =="Astelia alpina var. novae-hollandiae ")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title= "*Astelia alpina* var. *novae-hollandiae*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) + 
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_text(size=22)) +
+  theme(axis.text.x = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230)) 
+
+#4 Astelia psychrocharis
+Astelia.psychrocharis.plot <- ggplot(filter(FinalData, Species =="Astelia psychrocharis")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Astelia psychrocharis*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#5 Brachyscome stolonifera
+Brachyscome.stolonifera.plot <- ggplot(filter(FinalData, Species =="Brachyscome stolonifera")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Brachyscome stolonifera*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+   geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#8	Carex echinata
+Carex.echinata.plot <- ggplot(filter(FinalData, Species =="Carex echinata")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Carex echinata*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#9	Carex hypandra
+Carex.hypandra.plot <- ggplot(filter(FinalData, Species =="Carex hypandra")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Carex hypandra*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#10	Carex pyrenaica var. cephalotes
+Carex.pyrenaica.plot <- ggplot(filter(FinalData, Species =="Carex pyrenaica var. cephalotes")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Carex pyrenaica* var. *cephalotes*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#11	Carpha alpina
+Carpha.alpina.plot <- ggplot(filter(FinalData, Species =="Carpha alpina")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  labs(title="*Carpha alpina*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#12	Carpha nivicola
+Carpha.nivicola.plot <- ggplot(filter(FinalData, Species =="Carpha nivicola")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Carpha nivicola*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#13 Chionochloa frigida
+Chionochloa.frigida.plot <- ggplot(filter(FinalData, Species =="Chionochloa frigida")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Chionochloa frigida*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#14	Colobanthus affinis
+Colobanthus.affinis.plot <- ggplot(filter(FinalData, Species =="Colobanthus affinis")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Colobanthus affinis*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+
+#20	Dichosciadium ranunculaceum
+Dichosciadium.ranunculaceum.plot <- ggplot(filter(FinalData, Species =="Dichosciadium ranunculaceum var. ranunculaceum")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Dichosciadium ranunculaceum* var. *ranunculaceum*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#21	Drosera arcturi
+Drosera.arcturi.plot <- ggplot(filter(FinalData, Species =="Drosera arcturi")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  labs(title="*Drosera arcturi*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank())+
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#22	Epacris glacialis
+Epacris.glacialis.plot <- ggplot(filter(FinalData, Species =="Epacris glacialis")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Epacris glacialis*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#24	Ewartia nubigena
+Ewartia.nubigena.plot <- ggplot(filter(FinalData, Species =="Ewartia nubigena")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Ewartia nubigena*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#26	Luzula acutifolia
+Luzula.acutifolia.plot <- ggplot(filter(FinalData, Species =="Luzula acutifolia subsp. nana")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title= "*Luzula acutifolia* subsp. *nana*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#28	Luzula australasica
+Luzula.australasica.plot <- ggplot(filter(FinalData, Species =="Luzula australasica subsp. dura")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Luzula australasica* subsp. *dura*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22))
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#29	Lycopodium fastigiatum
+Lycopodium.fastigiatum.plot <- ggplot(filter(FinalData, Species =="Lycopodium fastigiatum")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Lycopodium fastigiatum*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+   geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#30	Nematolepis ovatifolia
+Nematolepis.ovatifolia.plot <- ggplot(filter(FinalData, Species =="Nematolepis ovatifolia")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Nematolepis ovatifolia*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#31	Oreobolus pumilio
+Oreobolus.pumilio.plot <- ggplot(filter(FinalData, Species =="Oreobolus pumilio")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Oreobolus pumilio*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#32	Oreomyrrhis brevipes
+Oreomyrrhis.brevipes.plot <- ggplot(filter(FinalData, Species =="Oreomyrrhis brevipes")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Oreomyrrhis brevipes*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#33	Oreomyrrhis pulvinifica
+Oreomyrrhis.pulvinifica.plot <- ggplot(filter(FinalData, Species =="Oreomyrrhis pulvinifica")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Oreomyrrhis pulvinifica*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#34	Orites lancifolius
+Orites.lancifolius.plot <- ggplot(filter(FinalData, Species =="Orites lancifolius")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Orites lancifolius*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#35	Ozothamnus alpinus
+Ozothamnus.alpinus.plot <- ggplot(filter(FinalData, Species =="Ozothamnus alpinus")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  labs(title="*Ozothamnus alpinus*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#37	Pappochroma setosum
+Pappochroma.setosum.plot <- ggplot(filter(FinalData, Species =="Pappochroma setosum")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Pappochroma setosum*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_blank()) +
+  theme(axis.text.y = element_text(size=22)) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#39	Pentachondra pumila
+Pentachondra.pumila.plot <- ggplot(filter(FinalData, Species =="Pentachondra pumila")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Pentachondra pumila*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#40	Plantago glacialis
+Plantago.glacialis.plot <- ggplot(filter(FinalData, Species == "Plantago glacialis")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  labs(title="*Plantago glacialis*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#44	Prasophyllum tadgellianum
+Prasophyllum.tadgellianum.plot <- ggplot(filter(FinalData, Species == "Prasophyllum tadgellianum")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  labs(title="*Prasophyllum tadgellianum*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#45	Psychrophila introloba
+Psychrophila.introloba.plot <- ggplot(filter(FinalData, Species == "Psychrophila introloba")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Psychrophila introloba*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_text(size = 22)) +
+ geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#46	Ranunculus anemoneus
+Ranunculus.anemoneus.plot <- ggplot(filter(FinalData, Species == "Ranunculus anemoneus")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Ranunculus anemoneus*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.y = element_blank()) +
+  theme(axis.text.x = element_text(size=22)) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#50	Ranunculus muelleri
+Ranunculus.muelleri.plot <- ggplot(filter(FinalData, Species == "Ranunculus muelleri")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Ranunculus muelleri*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#51	Ranunculus niphophilus
+Ranunculus.niphophilus.plot <- ggplot(filter(FinalData, Species == "Ranunculus niphophilus")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  labs(title="*Ranunculus niphophilus*", x="", y="") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text = element_text(size=22)) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#52	Rytidosperma alpicola
+Rytidosperma.alpicola.plot <- ggplot(filter(FinalData, Species == "Rytidosperma alpicola")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Rytidosperma alpicola*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.x = element_text(size=22)) +
+  theme(axis.text.y = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+
+#55	Senecio pectinatus
+Senecio.pectinatus.plot <- ggplot(filter(FinalData, Species == "Senecio pectinatus var. major")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Senecio pectinatus* var. *major*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  geom_quantile(quantiles = 0.95, size = 2.5, aes(Year, GoogleElevation), linetype = "longdash",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+   theme(axis.text.x = element_text(size=22)) +
+  theme(axis.text.y = element_blank()) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+
+#56	Stackhousia pulvinaris
+Stackhousia.pulvinaris.plot <- ggplot(filter(FinalData, Species == "Stackhousia pulvinaris")) +
+  geom_point(aes(Year, GoogleElevation), colour="darksalmon", size=3.5) + 
+  labs(title="*Stackhousia pulvinaris*", x="", y="") +
+  geom_quantile(quantiles = 0.05, size = 2.5, aes(Year, GoogleElevation), linetype = "solid",  colour="darkolivegreen3") +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  theme(panel.border= element_blank()) +
+  theme(plot.title = element_markdown(hjust = 0.5, size=28)) +  
+  theme(axis.line = element_line(color="black", size = 0.5)) +
+  theme(axis.text.y = element_blank()) +
+  theme(axis.text.x = element_text(size=22)) +
+  geom_smooth(aes(Year, GoogleElevation), method="lm", se=FALSE, colour="skyblue2", fill="skyblue2", alpha=.15, size= 2.5) +
+  coord_cartesian(xlim = c(1965, 2020), ylim = c(1350, 2230))
+```
+
+
+
+plotting all plots into a grid 
+```{r} 
+H2Plots <- grid.arrange(Astelia.alpina.plot, Astelia.psychrocharis.plot, Brachyscome.stolonifera.plot, Carex.echinata.plot, Carex.hypandra.plot, Carpha.alpina.plot, Carpha.nivicola.plot, Chionochloa.frigida.plot, Oreobolus.pumilio.plot, Oreomyrrhis.brevipes.plot, Orites.lancifolius.plot, Ozothamnus.alpinus.plot, Pappochroma.setosum.plot, Plantago.glacialis.plot, Ranunculus.muelleri.plot, Ranunculus.niphophilus.plot, Rytidosperma.alpicola.plot, Senecio.pectinatus.plot, ncol=3)
+
+
+H3Plots <- grid.arrange(Aciphylla.glacialis.plot, Agrostis.muelleriana.plot, Carex.pyrenaica.plot, Colobanthus.affinis.plot, Dichosciadium.ranunculaceum.plot, Drosera.arcturi.plot, Epacris.glacialis.plot, Ewartia.nubigena.plot, Luzula.acutifolia.plot, Luzula.australasica.plot, Lycopodium.fastigiatum.plot, Nematolepis.ovatifolia.plot, Oreomyrrhis.pulvinifica.plot, Pentachondra.pumila.plot, Prasophyllum.tadgellianum.plot, Psychrophila.introloba.plot, Ranunculus.anemoneus.plot, Stackhousia.pulvinaris.plot, ncol=3)
+                      
+```
+
+```{r}
+
+ggsave("Hypothesis2 plots.tiff",
+       plot= H2Plots, 
+       device = "tiff",
+       width = 23,
+       height = 30,
+       dpi = 100)
+
+ggsave("Hypothesis3 plots.tiff",
+       plot= H3Plots, 
+       device = "tiff",
+       width = 23,
+       height = 30,
+       dpi = 100)
+```
+
+

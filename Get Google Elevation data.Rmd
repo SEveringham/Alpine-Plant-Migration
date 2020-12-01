@@ -1,0 +1,23 @@
+
+```{r}
+library(googleway)
+```
+
+get google elevation from coordinates
+```{r}
+set_key(key = "AIzaSyAQRVTebHzXLUCK_Yf29Z9F2OiKPhqmjhA", api = c("elevation") )
+
+mydatacoordinates <- mutate(mydatacoordinates, GoogleElevation = google_elevation(df_locations = coordinate, simplify = TRUE))
+
+df <- data.frame(lat = -36.039333333,lon = 148.266722222)
+google_elevation(df_locations = df, simplify = TRUE)
+```
+
+```{r}
+lats <- data.countlimited$Latitude[1:26307]
+lons <- data.countlimited$Longitude[1:26307]
+  
+elevation(latitude = lats, longitude = lons, elevation_model = "srtm1", verbose = TRUE)
+head( elevation(data.countlimited, username = "jennya") )
+```
+
