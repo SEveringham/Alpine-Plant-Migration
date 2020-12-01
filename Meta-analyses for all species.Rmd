@@ -1,0 +1,199 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+libraries
+```{r}
+library(metafor)
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+library(ggtext)
+```
+
+
+```{r}
+Finaldata <- read.csv("Historic and Modern Data.csv")
+
+lmerdata <- read.csv("Linear Models for all species final.csv")
+
+SampleSize <- read.csv("Species list and count.csv")
+
+UpperQuantile <- read.csv("Upper Quantile Regressions P Correct.csv")
+
+LowerQuantile <- read.csv("Lower Quantile Regressions P Correct.csv")
+
+GrowthForm <- read.csv("Growth Form.csv", na.strings="")
+
+```
+
+
+
+
+Adding a column to the lmer results for all (mean, Upper and lower regressions) data to ensure there is a difference between species above 2200m and below 2200m
+
+```{r}
+above2200 <- Finaldata[c('Species', 'Above2200')] %>%
+  group_by(Species) %>% 
+  summarize(Above2200=mean(Above2200)) ## Squash down my data frame so there is only number (1 or 0) for each species whether it is below or above 2200m
+
+lmerdata <- left_join(lmerdata, above2200, by = "Species")
+
+lmerdata <- left_join(lmerdata, GrowthForm, by = "Species")
+
+```
+
+
+
+Creating dataframes with sample size and variance
+```{r}
+LinearData <- left_join(lmerdata, SampleSize, by = "Species") %>%
+  mutate(VarianceSlope = ((Year.std.error^2)/count))
+
+LowerQuantile <- left_join(LowerQuantile, SampleSize, by = "Species") %>%
+  mutate(LowerVarianceSlope = ((Lower.Year.std.error^2)/count)) 
+
+UpperQuantile <- left_join(UpperQuantile, H2SampleSize, by = "Species") %>%
+  mutate(UpperVarianceSlope = ((Upper.Year.std.error^2)/count)) 
+
+```
+
+Running meta analysis on linear regressions of all species 
+```{r}
+LinearSlopeAnalysis <- rma.uni(yi = Slope, vi = VarianceSlope, data = LinearData)
+print(LinearSlopeAnalysis)
+```
+MY RESULTS:
+estimate =  1.1243
+se = 0.9149
+
+```{r}
+#now one with a term for whether the species above or below 2200m (to test if this has an effect)
+
+LinearSlopeAnalysiswithlocation <- rma.uni(yi = Slope, vi = VarianceSlope, mods = Above2200, data = LinearData)
+print(LinearSlopeAnalysiswithlocation)
+```
+
+
+Plotting the forest plot for this meta-analysis on the mean regression
+```{r}
+OverallEffect <- data.frame(Species = "Overall Effect", Slope = 1.1243, Year.std.error = 0.9149) #creating datafram for overall effect
+
+LinearDataOverall <- bind_rows(LinearData, OverallEffect) %>% #binding overall effect df and linear data
+  mutate(CI = 1.96*VarianceSlope) %>%
+  mutate(CIofSE = 1.96*Year.std.error)
+
+forest.rma(LinearSlopeAnalysis)
+
+
+SpeciesLevel <- c('Overall Effect', 'Stackhousia pulvinaris', 'Senecio pectinatus var. major', 'Rytidosperma alpicola', 'Ranunculus niphophilus', 'Ranunculus muelleri', 'Ranunculus anemoneus', 'Psychrophila introloba', 'Prasophyllum tadgellianum', 'Plantago glacialis', 'Pentachondra pumila', 'Pappochroma setosum', 'Ozothamnus alpinus', 'Orites lancifolius', 'Oreomyrrhis pulvinifica', 'Oreomyrrhis brevipes', 'Oreobolus pumilio', 'Nematolepis ovatifolia', 'Lycopodium fastigiatum', 'Luzula australasica subsp. dura', 'Luzula acutifolia subsp. nana', 'Ewartia nubigena', 'Epacris glacialis', 'Drosera arcturi', 'Dichosciadium ranunculaceum var. ranunculaceum', 'Colobanthus affinis', 'Chionochloa frigida', 'Carpha nivicola', 'Carpha alpina', 'Carex pyrenaica var. cephalotes', 'Carex hypandra', 'Carex echinata', 'Brachyscome stolonifera', 'Astelia psychrocharis', 'Astelia alpina var. novae-hollandiae ', 'Agrostis muelleriana', 'Aciphylla glacialis')
+
+
+LinearForest <- ggplot(data = LinearDataOverall, aes(y= factor(Species, level = SpeciesLevel), x= Slope)) +
+  ylab("Species") +
+  xlab(expression(paste("Altitude Change ", (m.year^-1)))) +
+  scale_y_discrete(labels=c('Overall Effect', '*Stackhousia pulvinaris*', '*Senecio pectinatus* var. *major*', '*Rytidosperma alpicola*', '*Ranunculus niphophilus*', '*Ranunculus muelleri*', '*Ranunculus anemoneus*', '*Psychrophila introloba*', '*Prasophyllum tadgellianum*', '*Plantago glacialis*', '*Pentachondra pumila*', '*Pappochroma setosum*', '*Ozothamnus alpinus*', '*Orites lancifolius*', '*Oreomyrrhis pulvinifica*', '*Oreomyrrhis brevipes*', '*Oreobolus pumilio*', '*Nematolepis ovatifolia*', '*Lycopodium fastigiatum*', '*Luzula australasica* subsp. *dura*', '*Luzula acutifolia* subsp. *nana*', '*Ewartia nubigena*', '*Epacris glacialis*', '*Drosera arcturi*', '*Dichosciadium ranunculaceum* \nvar. *ranunculaceum*', '*Colobanthus affinis*', '*Chionochloa frigida*', '*Carpha nivicola*', '*Carpha alpina*', '*Carex pyrenaica* var. *cephalotes*', '*Carex hypandra*', '*Carex echinata*', '*Brachyscome stolonifera*', '*Astelia psychrocharis*', '*Astelia alpina* var. *novae-hollandiae*', '*Agrostis muelleriana*', '*Aciphylla glacialis*')) +
+ geom_errorbar(aes(xmin = Slope - CI, xmax = Slope + CI), colour = "darkolivegreen3", size = 1.5, width =0.5) +
+  geom_point(color = 'darksalmon', size = 7, shape = 18, fill= 'darksalmon') +
+   geom_errorbar(data=subset(LinearDataOverall, Species =="Overall Effect"), aes(xmin = Slope - CIofSE, xmax = Slope + CIofSE), colour = "skyblue2", size =1.5, width = 0.5) +
+  geom_point(data=subset(LinearDataOverall, Species =="Overall Effect"), colour = 'skyblue2', shape = 15, size = 6) +
+  geom_vline(xintercept=0, size =0.5, linetype = "dashed", alpha = 0.5) +
+  theme_classic() +
+  theme(axis.text.y = element_markdown(size=22)) +
+  theme(axis.text.x = element_text(size=22)) +
+  theme(axis.title.x = element_text(size=30)) +
+  theme(axis.title.y = element_markdown(size=40)) 
+
+ggsave(LinearForest, file='Linear Regression Forest.tiff', width = 17, height=18, dpi=100)
+
+```
+
+
+Meta-analysis for 0.05 quantile for all species
+```{r}
+LowerQSlopeAnalysis <- rma.uni(yi = Lower.Slope, vi = LowerVarianceSlope, data = LowerQuantile)
+
+print(LowerQSlopeAnalysis)
+
+forest.rma(LowerQSlopeAnalysis)
+
+estimate = 0.3882
+se = 1.5496
+
+LowerQOverallEffect <- data.frame(Species = "Overall Effect", Lower.Slope = 0.3882, Lower.Year.std.error = 1.5496) #creating datafram for overall effect
+
+LowerQOverall <- bind_rows(LowerQuantile, LowerQOverallEffect) %>% #binding overall effect df and lower quantile data
+  mutate(CI = 1.96*LowerVarianceSlope) %>%
+  mutate(CIofSE = 1.96*Lower.Year.std.error)
+
+LowerQForest <- ggplot(data = LowerQOverall, aes(y= factor(Species, level = SpeciesLevel), x= Lower.Slope)) +
+  ylab("Species") +
+  xlab(expression(paste("Altitude Change ", (m.year^-1)))) +
+  scale_y_discrete(labels=c('Overall Effect', '*Stackhousia pulvinaris*', '*Senecio pectinatus* var. *major*', '*Rytidosperma alpicola*', '*Ranunculus niphophilus*', '*Ranunculus muelleri*', '*Ranunculus anemoneus*', '*Psychrophila introloba*', '*Prasophyllum tadgellianum*', '*Plantago glacialis*', '*Pentachondra pumila*', '*Pappochroma setosum*', '*Ozothamnus alpinus*', '*Orites lancifolius*', '*Oreomyrrhis pulvinifica*', '*Oreomyrrhis brevipes*', '*Oreobolus pumilio*', '*Nematolepis ovatifolia*', '*Lycopodium fastigiatum*', '*Luzula australasica* subsp. *dura*', '*Luzula acutifolia* subsp. *nana*', '*Ewartia nubigena*', '*Epacris glacialis*', '*Drosera arcturi*', '*Dichosciadium ranunculaceum* \nvar. *ranunculaceum*', '*Colobanthus affinis*', '*Chionochloa frigida*', '*Carpha nivicola*', '*Carpha alpina*', '*Carex pyrenaica* var. *cephalotes*', '*Carex hypandra*', '*Carex echinata*', '*Brachyscome stolonifera*', '*Astelia psychrocharis*', '*Astelia alpina* var. *novae-hollandiae*', '*Agrostis muelleriana*', '*Aciphylla glacialis*')) +
+   geom_errorbar(data=LowerQOverall, aes(xmin = Lower.Slope - CI, xmax = Lower.Slope + CI), colour = "darkolivegreen3", size = 1.5, width = 0.5) +
+  geom_point(color = 'darksalmon', size = 7, shape = 18, fill= 'darksalmon') +
+   geom_errorbar(data=subset(LowerQOverall, Species =="Overall Effect"), aes(xmin = Lower.Slope - CIofSE, xmax = Lower.Slope + CIofSE), colour = "skyblue2", size =1.5, width = 0.5) +
+  geom_point(data=subset(LowerQOverall, Species =="Overall Effect"), colour = 'skyblue2', shape = 15, size = 6) +
+  geom_vline(xintercept=0, size =0.5, linetype = "dashed", alpha = 0.5) +
+  theme_classic() +
+  theme(axis.text.y = element_markdown(size=22)) +
+  theme(axis.text.x = element_text(size=22)) +
+  theme(axis.title.x = element_text(size=30)) +
+  theme(axis.title.y = element_markdown(size=40)) 
+
+ggsave(LowerQForest, file='Lower Q Regression Forest.tiff', width = 17, height=18, dpi=100)
+
+```
+
+Meta-analysis for 0.95 quantile H2 species
+
+```{r}
+UpperQSlopeAnalysis <- rma.uni(yi = Upper.Slope, vi = UpperVarianceSlope, data = UpperQuantile)
+print(UpperQSlopeAnalysis)
+
+
+estimate = 1.6246 
+se= 1.2153
+
+UpperQOverallEffect <- data.frame(Species = "Overall Effect", Upper.Slope = 1.6246, Upper.Year.std.error = 1.2153) #creating datafram for overall effect
+
+UpperQOverall <- bind_rows(UpperQuantile, UpperQOverallEffect) %>% #binding overall effect df and lower quantile data
+  mutate(CI = 1.96*UpperVarianceSlope) %>%
+  mutate(CIofSE = 1.96*Upper.Year.std.error)
+
+UpperSpeciesLevel <- c('Overall Effect', 'Senecio pectinatus var. major', 'Rytidosperma alpicola', 'Ranunculus niphophilus', 'Ranunculus muelleri', 'Plantago glacialis', 'Pappochroma setosum', 'Ozothamnus alpinus', 'Orites lancifolius', 'Oreomyrrhis brevipes', 'Oreobolus pumilio', 'Chionochloa frigida', 'Carpha nivicola', 'Carpha alpina', 'Carex hypandra', 'Carex echinata', 'Brachyscome stolonifera', 'Astelia psychrocharis', 'Astelia alpina var. novae-hollandiae')
+
+UpperQForest <- ggplot(data = UpperQOverall, aes(y= factor(Species, level = UpperSpeciesLevel), x= Upper.Slope)) +
+  ylab("Species") +
+  xlab(expression(paste("Altitude Change ", (m.year^-1)))) +
+  scale_y_discrete(labels=c('Overall Effect', '*Senecio pectinatus* var. *major*', '*Rytidosperma alpicola*', '*Ranunculus niphophilus*', '*Ranunculus muelleri*', '*Plantago glacialis*', '*Pappochroma setosum*', '*Ozothamnus alpinus*', '*Orites lancifolius*', '*Oreomyrrhis brevipes*', '*Oreobolus pumilio*', '*Chionochloa frigida*', '*Carpha nivicola*', '*Carpha alpina*', '*Carex hypandra*', '*Carex echinata*', '*Brachyscome stolonifera*', '*Astelia psychrocharis*', '*Astelia alpina* var. *novae-hollandiae*')) +
+   geom_errorbar(aes(xmin = Upper.Slope - CI, xmax = Upper.Slope + CI), colour = "darkolivegreen3", size = 1.5, width=0.5) +
+  geom_point(color = 'darksalmon', size = 7, shape = 18, fill= 'darksalmon') +
+   geom_errorbar(data=subset(UpperQOverall, Species =="Overall Effect"), aes(xmin = Upper.Slope - CIofSE, xmax = Upper.Slope + CIofSE), colour = "skyblue2", size =1.5, , width = 0.5) +
+  geom_point(data=subset(UpperQOverall, Species =="Overall Effect"), colour = 'skyblue2', shape = 15, size = 6) +
+  geom_vline(xintercept=0, size =0.5, linetype = "dashed", alpha = 0.5) +
+  theme_classic() +
+  theme(axis.text.y = element_markdown(size=22)) +
+  theme(axis.text.x = element_text(size=22)) +
+  theme(axis.title.x = element_text(size=30)) +
+  theme(axis.title.y = element_markdown(size=40)) 
+
+ggsave(UpperQForest, file='Upper Q Regression Forest.tiff', width = 14, height=14, dpi=100)
+```
+
+Meta-analysis for if Growth form has an effect
+```{r}
+LinearSlopeAnalysiswithGrowthForm <- rma.uni(yi = Slope, vi = VarianceSlope, mods = ~ relevel(Form, ref = "HerbMonocot"), data = LinearData)
+print(LinearSlopeAnalysiswithGrowthForm)
+
+
+##growth form anova 
+
+mod <- lm(Slope ~ Form, data=LinearData)
+
+anova(mod)
+```
+
