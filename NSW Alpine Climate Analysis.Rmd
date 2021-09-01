@@ -1,0 +1,73 @@
+---
+title: "Climate Data Alpine"
+output: html_document
+---
+
+Libraries required
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+```
+
+Read data
+
+```{r}
+AverageTemperature <- read.csv("DATAaveragemediantemperature.csv")
+Maximumsnowfall <- read.csv("MaximumSnowfall.csv")
+```
+
+Plot median temperature against year
+
+```{r}
+Temperatureplot <- ggplot(AverageTemperature, aes(x=Year, y = AverageMeanTemp)) + 
+  geom_point(colour = "darksalmon", size=3) +
+  labs(y="Average Annual Temperature (°C)") +
+  geom_smooth(method = lm, colour = "darkolivegreen3", se=FALSE, size = 1) +
+  scale_x_continuous(limits=c(1958,2022)) +
+  theme_classic() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(size=17),
+        axis.title.y = element_text(size=20))
+  
+
+plot(Temperatureplot)
+```
+
+Plot snow cover against year
+
+```{r}
+Snowplot <- ggplot(Maximumsnowfall, aes(x=Year, y = MaxSnowFall)) +
+  geom_point(colour = "skyblue2", size=3) +
+  labs(y="Maximum Annual Snow depth (cm)", x = "Year") +
+  geom_smooth(method = lm, colour = "darkolivegreen3", se=FALSE, size = 1) +
+  scale_x_continuous(limits=c(1958,2022)) +
+  theme_classic() +
+  theme(axis.text.x = element_text(size=17),
+        axis.title.x = element_text(size=30),
+        axis.text.y = element_text(size=15),
+        axis.title.y = element_text(size=20))
+
+plot(Snowplot)
+```
+Stitch both graphs together
+
+```{r}
+Climateplot <- grid.arrange(Temperatureplot, Snowplot, ncol = 1, heights =c(10,12))
+
+
+#save this plot :)
+
+ggsave(Climateplot,
+       device=jpeg,
+       scale= 100,
+       filename= "climateplot.jpeg",
+       height= 8,
+       width= 8,
+       dpi=30000,
+       limitsize=FALSE)
+
+```
+
