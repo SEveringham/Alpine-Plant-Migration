@@ -1,0 +1,30 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+FinalData <- read.csv("Historic and Modern Data.csv")
+ReviewersComment <- FinalData %>%
+  filter(Year >= 2000)
+```
+
+Linear regression analysis of species with less than three records before 2000 and >=10 years before the latest collection point in the early 2000s
+
+```{r}
+lm.ranun <- ReviewersComment %>%                          
+  filter(Species == "Rytidosperma alpicola") %>%
+  stats::lm(GoogleElevation~Year,.) #can just change species for each linear model
+
+summary(lm.ranun)
+```
+
+Quantile regressions for species with less than three records before 2000 and >=10 years before the latest collection point in the early 2000s
+
+```{r}
+t1 <- filter(ReviewersComment, Species =="Rytidosperma alpicola") %>%
+  rq(GoogleElevation ~ Year, tau=c(.05,0.95),.)   # doing quantile regressions for individual species *change species name*
+
+summary(t1, se = "boot") #running the bootstrap method to get p-values from the individual species
+```
+
